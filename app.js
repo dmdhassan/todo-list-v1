@@ -1,5 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const _ = require('lodash');
 let port = process.env.PORT || 5000;
 
 const app = express();
@@ -8,37 +10,136 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static('public'))
 
-let items = [];
-let workItems = [];
+mongoose.connect('mongodb+srv://admin-hassan:Hassan1104@cluster0.r4qky.mongodb.net/todoListDB');
+
+const itemsSchema = new mongoose.Schema({
+     name: String
+})
+
+const Item = mongoose.model('Item', itemsSchema);
+
+const item1 = new Item({
+     name: 'Welcome to your todo list'
+})
+
+const item2 = new Item({
+     name: 'Hit the + button to add a new item'
+})
+
+const item3 = new Item({
+     name: '<<< Click this to cancel an item'
+})
+
+const defaultItems = [item1, item2, item3];
+
+const listSchema = new mongoose.Schema({
+     name: String,
+     items: [itemsSchema]
+})
+
+const List = mongoose.model('List', listSchema);
+
+// let today = new Date();
+// let options = {
+//      weekday: 'long',
+//      day: 'numeric',
+//      month: 'long'
+// }
+// let day = today.toLocaleDateString('en-US', options);
 
 app.get('/', (req, res) => {
-     let today = new Date();
-     let options = {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long'
-     }
+     
+     Item.find({}, (err, foundItem) => {
 
-     let day = today.toLocaleDateString('en-US', options);
+          if (foundItem.length === 0) {
+               Item.insertMany(defaultItems, (err) => {
+                    if (err) {
+                    console.log(err)
+                    } else {
+                         console.log('You have successfully added the data');
+                    }
+               })
+
+               res.redirect('/')
+          } else {
+
+               res.render('list', {listTitle: 'Today', newListItems: foundItem});
+          }
+     })
 
 
-     res.render('list', {listTitle: day, newListItems: items});
 })
 
 app.post('/', (req, res) => {
-     let item = req.body.newItem;
+     const itemName = req.body.newItem;
+     const listName = req.body.list;
 
-     if (req.body.list == 'Work') {
-          workItems.push(item)
-          res.redirect('/work')
-     } else {
-          items.push(item)
+     const item = new Item({
+     name: itemName
+     })
+
+     if (listName === 'Today') {
+          item.save()
           res.redirect('/')
-     }
+     } else {
+          List.findOne({name: listName}, (err, foundList) => {
+               if (!err) {
+                    foundList.items.push(item);
+                    foundList.save()
+
+                    res.redirect('/' + listName)
+               } else {
+                    console.log(err);
+               }
+          })
+     } 
+
 })
 
-app.get('/work', (req, res) => {
-     res.render('list', {listTitle: 'Work List', newListItems: workItems})
+app.post('/delete', (req, res) => {
+     let checkedItemId = req.body.checkbox;
+     let listName = req.body.listName
+
+     if (listName === 'Today') {
+          Item.findByIdAndRemove(checkedItemId, (err) => {
+          if (err) {
+               console.log(err);
+          } else {
+               console.log('Successfully deleted');
+          }
+          res.redirect('/')
+     });
+     } else {
+          List.findOneAndUpdate({name: listName}, {$pull: {items: {_id: checkedItemId}}}, (err, foundList) => {
+               if (!err) {
+                    res.redirect('/' + listName)
+               }
+          })
+     }
+
+})
+
+app.get('/:newList', (req, res) => {
+     const newList = _.capitalize(req.params.newList);
+
+     List.findOne({name: newList}, (err, foundList) => {
+          
+          if (!err) {
+               if (!foundList) {
+                    const list = new List({
+                         name: newList,
+                         items: defaultItems 
+                    })
+
+                    list.save()
+                    res.redirect(`/${newList}`)
+               } else {
+                    res.render('list', {listTitle: newList, newListItems: foundList.items });
+               }
+          }
+     })
+
+
 })
 
 

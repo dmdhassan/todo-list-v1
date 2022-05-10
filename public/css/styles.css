@@ -35,7 +35,15 @@ h1 {
   border-bottom: 0;
 }
 
-input:checked+p {
+input:checked label {
+    margin: 0;
+    padding: 20px;
+    font-size: 20px;
+    font-weight: 200;
+    color: #00204a;
+}
+
+input:checked+label {
   text-decoration: line-through;
   text-decoration-color: #A683E3;
 }
@@ -43,14 +51,6 @@ input:checked+p {
 input[type="checkbox"] {
   margin: 20px;
   /* padding: 50px; */
-}
-
-p {
-  margin: 0;
-  padding: 20px;
-  font-size: 20px;
-  font-weight: 200;
-  color: #00204a;
 }
 
 form {
